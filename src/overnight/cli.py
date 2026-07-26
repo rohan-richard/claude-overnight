@@ -1,8 +1,10 @@
 """The `overnight` command."""
 
 import argparse
+import json
 import os
 import sys
+from dataclasses import asdict
 from datetime import datetime
 
 from . import __version__, config, install, limits, paths, runner, store, summary, trust
@@ -26,6 +28,9 @@ def cmd_add(args) -> int:
 
 def cmd_list(args) -> int:
     jobs = store.list_jobs()
+    if args.json:
+        print(json.dumps([asdict(job) for job in jobs], indent=2))
+        return 0
     if not jobs:
         print("Queue is empty. Add with: overnight add \"your question\"")
         return 0
@@ -285,6 +290,7 @@ def main(argv=None) -> int:
     p.set_defaults(func=cmd_followup)
 
     p = sub.add_parser("list", help="show the queue")
+    p.add_argument("--json", action="store_true", help="print jobs as JSON")
     p.set_defaults(func=cmd_list)
 
     p = sub.add_parser("trust", help="trust a repo for coding jobs (no arg: list trusted)")

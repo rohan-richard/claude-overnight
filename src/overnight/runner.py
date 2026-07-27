@@ -223,7 +223,11 @@ def _run_repo_job(job: store.Job, cfg: Config, claude: str) -> store.Job:
             *(["--resume", resume] if resume else []),
             "--output-format", "json",
             "--model", job.model or cfg.model,
-            "--permission-mode", "acceptEdits",
+            # acceptEdits auto-approves file edits but still prompts for Bash,
+            # and headless `-p` has nobody to answer — so jobs could never run
+            # the tests the prompt asks them for. The gate is the explicit
+            # trust list plus the isolated worktree, not the permission mode.
+            "--permission-mode", "bypassPermissions",
             *cfg.extra_args,
         ]
         result_text, error, session_id = _invoke_claude(cmd, worktree, cfg.repo_job_timeout_minutes)

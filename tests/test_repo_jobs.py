@@ -150,3 +150,36 @@ def test_first_flag_orders_queue():
     store.add("urgent", first=True)
     jobs = store.list_jobs(store.PENDING)
     assert jobs[0].prompt == "urgent"
+
+
+def test_repo_job_can_run_shell_commands(repo, monkeypatch):
+    """Coding jobs are told to run the test suite, and nobody is awake to
+    approve a prompt. acceptEdits only covers file edits, so anything short of
+    bypassPermissions leaves jobs unable to verify their own work."""
+    trust.trust(str(repo))
+    seen = {}
+
+    def capture(cmd, cwd, timeout_minutes):
+        seen["cmd"] = cmd
+        return ("done", None, "sess-1")
+
+    monkeypatch.setattr(runner, "_invoke_claude", capture)
+    runner.run_job(store.add("add feature", repo=str(repo)), Config())
+
+    mode = seen["cmd"][seen["cmd"].index("--permission-mode") + 1]
+    assert mode == "bypassPermissions"
+
+
+def test_research_jobs_stay_locked_to_web_tools(monkeypatch):
+    seen = {}
+
+    def capture(cmd, cwd, timeout_minutes):
+        seen["cmd"] = cmd
+        return ("done", None, "sess-1")
+
+    monkeypatch.setattr(runner, "_invoke_claude", capture)
+    runner.run_job(store.add("a question"), Config())
+
+    tools = seen["cmd"][seen["cmd"].index("--allowedTools") + 1]
+    assert tools == "WebSearch,WebFetch"
+    assert "bypassPermissions" not in seen["cmd"]

@@ -1,5 +1,6 @@
 """Trusted repos: only blessed repositories may run overnight coding jobs,
-since those run with acceptEdits and can execute shell commands."""
+since those run unattended with bypassPermissions and can execute arbitrary
+shell commands. This list is the gate."""
 
 from pathlib import Path
 

@@ -78,7 +78,7 @@ git diff main..overnight/add-a-dark-mode-toggle-3f9c2a   # love it or delete it
 
 The agent commits its work (WIP-prefixed if it got stuck), writes a `SUMMARY.md`, and the digest shows the branch plus a diffstat. Branches with no changes are dropped automatically.
 
-**Safety model:** coding jobs run with `acceptEdits` (they need to edit files and run your tests), so they only run against repos you've explicitly blessed with `overnight trust`. The worktree fences file changes, but a job can execute shell commands — trust repos accordingly. Research jobs remain locked to web-search tools.
+**Safety model:** coding jobs run with `bypassPermissions` — they need to edit files, run your tests, and install nothing you didn't already have. Nobody is awake to approve prompts, so anything less means the job silently can't verify its own work. That's why they only run against repos you've explicitly blessed with `overnight trust`. The worktree fences file changes, but a job can execute arbitrary shell commands — trust repos accordingly. Research jobs remain locked to web-search tools.
 
 Results land in `~/.overnight/results/<date>/`, one markdown report per question. Each batch also gets its own record in `~/.overnight/results/batches/`, and `index.md` is a table of contents over them — only the current batch is ever shown at once, so the digest stays readable however many nights you run.
 

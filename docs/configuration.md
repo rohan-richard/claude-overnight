@@ -53,7 +53,9 @@ If usage can't be read at all (expired token, endpoint changed), the runner proc
 | --- | --- |
 | `~/.overnight/queue/` | One JSON file per job |
 | `~/.overnight/results/<date>/` | Markdown reports |
-| `~/.overnight/results/index.md` | Rolling digest, newest batch last |
+| `~/.overnight/results/index.md` | Table of contents over the batch records, newest first |
+| `~/.overnight/results/batches/` | One markdown + HTML record per batch |
+| `~/.overnight/results/latest.html` | The most recent batch summary (`overnight open`) |
 | `~/.overnight/logs/` | scheduler runner stdout/stderr |
 | `~/.overnight/trusted_repos` | Repos blessed for coding jobs |
 | `~/.overnight/worktrees/` | Transient worktrees during coding jobs |

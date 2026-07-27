@@ -5,7 +5,7 @@ import pytest
 from datetime import datetime, time
 from types import SimpleNamespace
 
-from overnight import limits, paths, runner, store
+from overnight import archive, limits, paths, runner, store
 from overnight.config import Config
 
 NIGHT = datetime(2026, 7, 16, 3, 0)
@@ -13,6 +13,8 @@ DAY = datetime(2026, 7, 16, 14, 0)
 
 
 def cfg(**kw) -> Config:
+    # Off by default so the suite never opens a real browser tab.
+    kw.setdefault("open_browser_summary", False)
     return Config(**kw)
 
 
@@ -118,8 +120,37 @@ class TestRunBatch:
         store.add("q2")
         summary = runner.run_batch(cfg(), now=NIGHT)
         assert summary.startswith("2 done, 0 failed")
-        index = (paths.results_dir() / "index.md").read_text()
-        assert "q1" in index and "q2" in index
+        batch = archive.current_batch_markdown()
+        assert "q1" in batch and "q2" in batch
+        # The index is a table of contents, not a transcript of every batch.
+        index = archive.index_path().read_text()
+        assert "q1" not in index
+        assert "1 batch" not in index  # entries are links, not counts
+        assert len(archive.list_batches()) == 1
+
+    def test_opens_summary_when_enabled(self, monkeypatch):
+        monkeypatch.setattr(subprocess, "run", fake_claude("answer"))
+        monkeypatch.setattr(limits, "fetch_usage", lambda **kw: usage(5, 10))
+        monkeypatch.setattr(runner.notify, "send", lambda *a: None)
+        opened = []
+        monkeypatch.setattr(runner.summary_page, "open_in_browser",
+                            lambda p: opened.append(p) or True)
+        store.add("q1")
+        runner.run_batch(cfg(open_browser_summary=True), now=NIGHT)
+        assert opened == [archive.latest_html_path()]
+
+    def test_each_batch_gets_its_own_record(self, monkeypatch):
+        monkeypatch.setattr(subprocess, "run", fake_claude("answer"))
+        monkeypatch.setattr(limits, "fetch_usage", lambda **kw: usage(5, 10))
+        monkeypatch.setattr(runner.notify, "send", lambda *a: None)
+        store.add("first")
+        runner.run_batch(cfg(), now=NIGHT)
+        store.add("second")
+        runner.run_batch(cfg(), now=NIGHT.replace(hour=4))
+        batches = archive.list_batches()
+        assert len(batches) == 2
+        assert "second" in archive.current_batch_markdown()
+        assert "first" not in archive.current_batch_markdown()
 
     def test_respects_start_decision(self, monkeypatch):
         monkeypatch.setattr(limits, "fetch_usage", lambda **kw: usage(five=90))

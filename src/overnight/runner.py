@@ -9,8 +9,9 @@ import subprocess
 import time as time_mod
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 
-from . import limits, notify, paths, store, trust
+from . import archive, limits, notify, paths, store, trust
 from . import summary as summary_page
 from .config import Config, in_window
 
@@ -286,20 +287,9 @@ def _write_result(job: store.Job, text: str):
     return path
 
 
-def _update_index(batch: list[store.Job]) -> None:
-    index = paths.results_dir() / "index.md"
-    stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-    lines = [f"\n## Batch {stamp}\n"]
-    for job in batch:
-        if job.status == store.DONE and job.result_path:
-            rel = os.path.relpath(job.result_path, paths.results_dir())
-            lines.append(f"- ✅ [{job.prompt[:80]}]({rel}) · resume `{job.id[-6:]}`")
-        elif job.status == store.PENDING:
-            lines.append(f"- ⏸️ requeued (hit limit): {job.prompt[:80]}")
-        else:
-            lines.append(f"- ❌ {job.prompt[:80]} — {job.error or 'failed'}")
-    existing = index.read_text() if index.exists() else "# Overnight results\n"
-    index.write_text(existing + "\n".join(lines) + "\n")
+def _update_index(batch: list[store.Job]) -> Path:
+    """Record the batch and refresh the index. Returns the batch's HTML page."""
+    return archive.write_batch(batch)
 
 
 def is_due(job: store.Job, now: datetime) -> bool:
@@ -356,9 +346,14 @@ def run_batch(cfg: Config, force: bool = False, now: datetime | None = None) -> 
             if not decision.run:
                 break
 
-        _update_index(batch)
-        if cfg.open_browser_summary:
-            summary_page.open_in_browser(summary_page.write(batch))
+        record = _update_index(batch)
+        # Open the stable path so `overnight open` lands on the same page, but
+        # log the dated record, which is the permanent one.
+        opened = cfg.open_browser_summary and summary_page.open_in_browser(
+            archive.latest_html_path())
+        # Logged either way: a scheduler-launched run cannot always reach a
+        # browser, and then this path is the only way back to the summary.
+        print(f"summary: {record}{'' if opened else '  (not opened — `overnight open`)'}")
         done = sum(1 for j in batch if j.status == store.DONE)
         failed = sum(1 for j in batch if j.status == store.FAILED)
         left = len(store.list_jobs(store.PENDING))

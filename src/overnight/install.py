@@ -14,7 +14,8 @@ LAUNCHD_LABEL = "com.claude-overnight.runner"
 SYSTEMD_UNIT = "claude-overnight"
 TICK_MINUTES = 30
 
-SLASH_COMMAND = """\
+SLASH_COMMANDS = {
+    "queue.md": """\
 ---
 description: Queue a question or coding task for claude-overnight to run when your limits reset
 allowed-tools: Bash(overnight add:*), Bash(overnight trust:*)
@@ -30,7 +31,44 @@ Queue the user's request for the overnight batch:
 
 Then confirm it was queued and mention it will run in the next overnight
 window (coding jobs land on an `overnight/*` branch to review in the morning).
-"""
+""",
+    "followup.md": """\
+---
+description: Queue a follow-up on a previous overnight job's session
+allowed-tools: Bash(overnight followup:*), Bash(overnight list:*)
+---
+
+Queue a follow-up for an existing overnight job. The user's request is:
+$ARGUMENTS
+
+- It should start with a job id (or an unambiguous fragment of one), followed
+  by the follow-up question. If no id is given, run `overnight list` and ask
+  which job to follow up on.
+- Run `overnight followup <id> "<question>"`.
+- If it errors because the job has no saved session, tell the user and
+  suggest `/queue` for a fresh question instead.
+
+Confirm it was queued and mention it will resume that job's session in the
+next overnight window.
+""",
+    "status.md": """\
+---
+description: Check the overnight queue, limits, and any finished results
+allowed-tools: Bash(overnight status:*), Bash(overnight list:*), Bash(overnight results:*)
+---
+
+Check on the overnight batch:
+
+- Run `overnight status` for the current window/limits and whether a batch
+  would run right now.
+- Run `overnight list` to see pending/done/failed jobs.
+- If there are done jobs, run `overnight results` for the digest. Mention
+  `overnight results <id>` to read one report, or `overnight resume <id>` /
+  `/followup <id> ...` to continue a job's session.
+
+Summarize what's pending, what finished, and anything that failed and why.
+""",
+}
 
 
 def _scheduler_path() -> str:
@@ -152,16 +190,23 @@ def uninstall_systemd() -> bool:
 
 # --- slash command ---
 
-def install_slash_command() -> Path:
-    path = Path.home() / ".claude" / "commands" / "queue.md"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(SLASH_COMMAND)
-    return path
+def install_slash_command() -> list[Path]:
+    commands_dir = Path.home() / ".claude" / "commands"
+    commands_dir.mkdir(parents=True, exist_ok=True)
+    paths_written = []
+    for name, content in SLASH_COMMANDS.items():
+        path = commands_dir / name
+        path.write_text(content)
+        paths_written.append(path)
+    return paths_written
 
 
 def uninstall_slash_command() -> bool:
-    path = Path.home() / ".claude" / "commands" / "queue.md"
-    if path.exists():
-        path.unlink()
-        return True
-    return False
+    commands_dir = Path.home() / ".claude" / "commands"
+    removed = False
+    for name in SLASH_COMMANDS:
+        path = commands_dir / name
+        if path.exists():
+            path.unlink()
+            removed = True
+    return removed

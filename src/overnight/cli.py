@@ -5,7 +5,7 @@ import os
 import sys
 from datetime import datetime
 
-from . import __version__, config, install, limits, paths, runner, store, summary, trust
+from . import __version__, archive, config, install, limits, paths, runner, store, summary, trust
 
 
 def cmd_add(args) -> int:
@@ -75,11 +75,15 @@ def cmd_results(args) -> int:
         if job.extra.get("session_id"):
             print(f"\n→ continue this conversation: overnight resume {job.id[-6:]}")
         return 0
-    index = paths.results_dir() / "index.md"
-    if not index.exists():
+    current = archive.current_batch_markdown()
+    if not current:
         print("No results yet.")
         return 0
-    print(index.read_text())
+    print(current)
+    older = [b for b in archive.list_batches()[1:]]
+    if older:
+        print(f"{len(older)} earlier batch{'es' if len(older) > 1 else ''}: "
+              f"{archive.index_path()}")
     done = store.list_jobs(store.DONE)
     if done:
         print("Read one report: overnight results <id> · pick up where it left off: overnight resume <id>")
@@ -89,13 +93,15 @@ def cmd_results(args) -> int:
 
 
 def cmd_open(args) -> int:
-    path = paths.results_dir() / "latest.html"
+    path = archive.latest_html_path()
     if not path.exists():
         print("No batch summary yet — it's written the first time a batch finishes.")
         return 1
-    summary.open_in_browser(path)
-    print(f"Opened {path}")
-    return 0
+    if summary.open_in_browser(path):
+        print(f"Opened {path}")
+        return 0
+    print(f"Could not open a browser. The summary is at:\n  {path.as_uri()}")
+    return 1
 
 
 def cmd_followup(args) -> int:
@@ -238,9 +244,10 @@ def cmd_install(args) -> int:
     paths.ensure_dirs()
     config.load()  # writes default config on first run
     plist = install.install_scheduler()
-    cmd = install.install_slash_command()
+    cmds = install.install_slash_command()
     print(f"Installed scheduler: {plist}")
-    print(f"Installed slash command: {cmd}  (use /queue inside Claude Code)")
+    names = ", ".join(f"/{p.stem}" for p in cmds)
+    print(f"Installed slash commands: {names} in {cmds[0].parent}")
     print(f"Config: {paths.config_path()}")
     return 0
 

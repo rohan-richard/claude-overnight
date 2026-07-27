@@ -28,7 +28,10 @@ Module boundaries (`src/overnight/`):
 | `config` | TOML config, window math | `paths` |
 | `store` | job persistence (one JSON per job), status transitions | `paths` |
 | `limits` | OAuth token discovery, usage endpoint, defensive parsing | — |
-| `runner` | start/continue decisions, job execution, results, index, lock | all above |
+| `runner` | start/continue decisions, job execution, results, lock | all above |
+| `archive` | per-batch records, index regeneration | `paths`, `store`, `summary` |
+| `summary` | HTML batch page, browser opening | `markdown`, `store` |
+| `markdown` | markdown → HTML for embedded reports | — |
 | `notify` | best-effort macOS notification | — |
 | `install` | launchd plist, slash command file | `paths` |
 | `cli` | argument parsing only | all above |

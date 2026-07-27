@@ -33,7 +33,7 @@ overnight install                  # sets up the scheduler + /queue slash comman
 `overnight install` does two things:
 
 1. Registers a **scheduler** — a launchd agent on macOS, a systemd user timer on Linux — that wakes every 30 minutes, checks whether you're inside the night window and under the limit thresholds, and runs the queue if so.
-2. Drops a **`/queue` slash command** into `~/.claude/commands/`, so you can queue questions without leaving Claude Code.
+2. Drops **`/queue`, `/followup`, and `/status` slash commands** into `~/.claude/commands/`, so you can queue questions, continue a finished job's session, and check on the batch without leaving Claude Code.
 
 Requires macOS or Linux, Python 3.11+, and the [Claude Code](https://code.claude.com) CLI with a Pro/Max subscription. Also installable as a Claude Code plugin (`/plugin marketplace add rohanprichard/claude-overnight`) or an agent skill (`npx skills add rohanprichard/claude-overnight`).
 
@@ -80,7 +80,9 @@ The agent commits its work (WIP-prefixed if it got stuck), writes a `SUMMARY.md`
 
 **Safety model:** coding jobs run with `acceptEdits` (they need to edit files and run your tests), so they only run against repos you've explicitly blessed with `overnight trust`. The worktree fences file changes, but a job can execute shell commands — trust repos accordingly. Research jobs remain locked to web-search tools.
 
-Results land in `~/.overnight/results/<date>/`, one markdown report per question, with a rolling `index.md` digest. A notification fires when the batch finishes, and a summary page opens in your browser — status, resume command, and a link to each report — so the morning workflow starts with one glance instead of a terminal (`open_browser_summary = false` in config to disable).
+Results land in `~/.overnight/results/<date>/`, one markdown report per question. Each batch also gets its own record in `~/.overnight/results/batches/`, and `index.md` is a table of contents over them — only the current batch is ever shown at once, so the digest stays readable however many nights you run.
+
+A notification fires when the batch finishes, and a summary page opens in your browser: counts, elapsed time, the resume command for each job, and every report rendered inline so you can read the night's work without leaving the page (`open_browser_summary = false` in config to disable). `overnight open` reopens it.
 
 **Every overnight job saves its Claude session**, which enables overnight *threads* instead of one-shot answers:
 
